@@ -218,13 +218,13 @@ class Battle():
                                    key=lambda actor: (-actor.speed, actor.name))
 
   def run_turn(self):
+    print('========================================')
     
     current_actor = self.initiative_order[self.current_actor_index]
     current_actor.take_turn(self)
 
     self.current_actor_index = (
         (self.current_actor_index + 1) % len(self.initiative_order))
-    print(self.current_actor_index)
 
   def start(self):
     while self.players and self.enemies:
