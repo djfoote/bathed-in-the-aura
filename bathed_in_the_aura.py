@@ -2,6 +2,15 @@ import random
 
 MAX_ACTION_POINTS = 3
 
+CRIT_PROBABILITY = 1/8
+CRIT_MULTIPLIER = 2
+
+# Placeholder stat system: multipliers are `STAT_EXPONENT_BASE ** stat_value`.
+STAT_EXPONENT_BASE = 1.1
+
+PHYSICAL = 'physical'
+SPECIAL = 'special'
+
 
 class Actor():
   def __init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
@@ -38,17 +47,64 @@ class Actor():
     return self.name
 
   def attack_target(self, target):
-    damage = max(0, self.attack - target.defense)
-    print('%s attacked %s for %d damage.' % (self.name, target.name, damage))
+    phys_damage = self.get_damage(target, PHYSICAL)
+    sp_damage = self.get_damage(target, SPECIAL)
+    crit = random.random() < CRIT_PROBABILITY
+    crit_multiplier = CRIT_MULTIPLIER if crit else 1
+
+    damage = round((phys_damage + sp_damage) * crit_multiplier)
+
+    print('%s attacked %s.' % (self.name, target.name))
+    if crit:
+      print('Critical hit!')
+    print('%s took %d damage.' % (target.name, damage))
+
     target.take_damage(damage)
 
-  def take_turn(self, battle):
+  def get_damage(self, target, damage_type):
+    base_damage = self.get_base_damage(damage_type)
+    damage_mult = self.get_damage_multiplier(damage_type)
+    def_mult = target.get_defense_multiplier(damage_type)
+    damage_bonus = self.get_damage_bonus(damage_type)
+    def_bonus = target.get_def_bonus(damage_type)
+
+    raw_phys_damage = (
+        base_damage * damage_mult * def_mult + damage_bonus - def_bonus)
+
+    return max(0, raw_phys_damage)
+
+  def get_base_damage(self, damage_type):
     raise NotImplementedError
 
-  def interact(self, target):
-    target.react(self)
+  def get_damage_multiplier(self, damage_type):
+    """Placeholder to be replaced when stat system is removed."""
+    if damage_type == PHYSICAL:
+      relevant_stat = self.attack
+    elif damage_type == SPECIAL:
+      relevant_stat = self.sp_attack
+    else:
+      raise ValueError('Invalid damage type %s' % damage_type)
 
-  def react(self, interactor):
+    return STAT_EXPONENT_BASE ** relevant_stat
+
+  def get_defense_multiplier(self, damage_type):
+    """Placeholder to be replaced when stat system is removed."""
+    if damage_type == PHYSICAL:
+      relevant_stat = self.defense
+    elif damage_type == SPECIAL:
+      relevant_stat = self.sp_defense
+    else:
+      raise ValueError('Invalid damage type %s' % damage_type)
+
+    return STAT_EXPONENT_BASE ** -relevant_stat
+
+  def get_damage_bonus(self, damage_type):
+    return 0
+
+  def get_def_bonus(self, damage_type):
+    return 0
+
+  def take_turn(self, battle):
     raise NotImplementedError
 
 
@@ -59,6 +115,13 @@ class Enemy(Actor):
 
   def react(self, interactor):
     print("%s didn't like that" % self.name)
+
+  def get_base_damage(self, damage_type):
+    """Default behavior: deal basic physical and special damage."""
+    return {
+        PHYSICAL: 1,
+        SPECIAL: 1,
+    }[damage_type]
 
 
 class LilBug(Enemy):
@@ -72,6 +135,12 @@ class LilBug(Enemy):
           sp_attack=1,
           sp_defense=1,
           speed=8)
+
+  def get_base_damage(self, damage_type):
+    return {
+        PHYSICAL: 1,
+        SPECIAL: 0,
+    }[damage_type]
 
   def react(self, interactor):
     print("%s bit %s's finger. %s took 1 damage." %
@@ -124,21 +193,19 @@ class Player(Actor):
         elif action == 'look':
           battle.explain()
 
-  def attack_target(self, target):
-    if self.equipped:
-      special = self.equipped.special
-      damage_bonus = self.equipped.get_damage()
+
+  def get_base_damage(self, damage_type):
+    if self.equipped is None:
+      # Unarmed damage.
+      return {
+          PHYSICAL: 1,
+          SPECIAL: 0,
+      }[damage_type]
     else:
-      special = False
-      damage_bonus = 0
-    if special:
-      damage = self.sp_attack - target.sp_defense + damage_bonus
-    else:
-      damage = self.attack - target.defense + damage_bonus
-    damage = max(0, damage)
-    print('%s attacked %s with %s for %d damage.' % (
-        self.name, target.name, get_equipped_string(self.equipped), damage))
-    target.take_damage(damage)
+      return self.equipped.get_damage(damage_type)
+
+  def interact(self, target):
+    target.react(self)
 
 
 class Item():
@@ -162,26 +229,47 @@ class Potion(Item):
 
 
 class Weapon():
-  def __init__(self, name, damage_range, special):
+  def __init__(self, name):
     self.name = name
 
-    # Damage range is doubly inclusive.
-    self.damage_range = damage_range
-    self.special = special
-
-  def get_damage(self):
-    return random.randint(*self.damage_range)
+  def get_damage(self, damage_type):
+    raise NotImplementedError
 
   def get_valid_targets(self, user, battle):
     return [user]
 
   def use(self, user, target):
-    print('%s equipped' % self.name)
+    print('%s equipped %s' % (user.name, self.name))
     user.equipped = self
 
   def __repr__(self):
-    return '%s %s %s' % (self.name, self.damage_range,
-                         get_special_string(self.special))
+    return self.name
+
+
+class Sword(Weapon):
+  """A basic deterministic physical weapon."""
+  def __init__(self, name, base_power):
+    Weapon.__init__(self, name)
+    self.base_power = base_power
+
+  def get_damage(self, damage_type):
+    return {
+        PHYSICAL: self.base_power,
+        SPECIAL: 0,
+    }[damage_type]
+
+
+class MagicWand(Weapon):
+  """A basic deterministic special weapon."""
+  def __init__(self, name, base_power):
+    Weapon.__init__(self, name)
+    self.base_power = base_power
+
+  def get_damage(self, damage_type):
+    return {
+        PHYSICAL: 0,
+        SPECIAL: self.base_power,
+    }[damage_type]
 
 
 class Battle():
@@ -209,7 +297,7 @@ class Battle():
         if isinstance(actor, Enemy):
           self.enemies.append(actor)
       # Don't skip a turn when someone dies.
-      elif i <= self.current_actor_index:
+      elif i < self.current_actor_index:
         self.current_actor_index -= 1
 
   def init_initiative_order(self):
@@ -239,10 +327,6 @@ class Battle():
       print('All enemies dead. You win.')
 
 
-def get_special_string(special):
-  return 'Special' if special else 'Physical'
-
-
 def get_equipped_string(equipped):
   return equipped.name if equipped is not None else 'unarmed'
 
@@ -261,8 +345,8 @@ def choose_option(options):
 
 
 def main():
-  sword = Weapon('Sword', (1, 3), False)
-  staff = Weapon('Lightning staff', (1, 3), True)
+  sword = Sword('Sword', 2)
+  magic_wand = MagicWand('Magic wand', 2)
   anzacel = Player(
       name='Anzacel',
       max_hp=10,
@@ -271,7 +355,7 @@ def main():
       sp_attack=10,
       sp_defense=10,
       speed=10,
-      inventory=[Potion(), sword, staff])
+      inventory=[Potion(), sword, magic_wand])
 
   lil_bugs = [LilBug(i) for i in range(4)]
   lil_bugs[0].speed = 11
