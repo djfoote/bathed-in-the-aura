@@ -186,6 +186,41 @@ class Enemy(Actor):
     }[damage_type]
 
 
+class PapaRoach(Enemy):
+  def __init__(self):
+    Enemy.__init__(
+        self,
+        name='Papa Roach',
+        max_hp=20,
+        attack=3,
+        defense=5,
+        sp_attack=1,
+        sp_defense=1,
+        speed=5)
+
+  def take_turn(self, battle):
+    available_actions = ['spawn', 'attack']
+    if self.hp >= 2:
+      action = random.choice(available_actions)
+    else:
+      action = 'attack'
+    if action == 'attack':
+      target = random.choice(battle.players)
+      self.attack_target(target)
+    elif action == 'spawn':
+      lilbug = LilBug('pete')
+      print('%s spawned %s' % (self.name, lilbug))
+      battle.spawn_enemy(lilbug)
+      self.hp //= 2
+    self.decrement_auras()
+
+  def get_base_damage(self, damage_type):
+    return {
+        PHYSICAL: 1,
+        SPECIAL: 0,
+    }[damage_type]
+
+
 class LilBug(Enemy):
   def __init__(self, identifier):
       Enemy.__init__(
@@ -387,6 +422,10 @@ class Battle():
       elif i < self.current_actor_index:
         self.current_actor_index -= 1
 
+  def spawn_enemy(self, enemy):
+    self.enemies.append(enemy)
+    self.init_initiative_order()
+
   def init_initiative_order(self):
     actors = self.players + self.enemies
     self.initiative_order = sorted(actors,
@@ -444,10 +483,7 @@ def main():
       speed=10,
       inventory=[BerserkerPotion(), Potion(), sword, magic_wand])
 
-  lil_bugs = [LilBug(i) for i in range(4)]
-  lil_bugs[0].speed = 11
-
-  battle = Battle([anzacel], lil_bugs)
+  battle = Battle([anzacel], [PapaRoach()])
   battle.explain()
   battle.start()
 
