@@ -1,3 +1,4 @@
+import collections
 import random
 
 MAX_ACTION_POINTS = 3
@@ -8,13 +9,27 @@ CRIT_MULTIPLIER = 2
 # Placeholder stat system: multipliers are `STAT_EXPONENT_BASE ** stat_value`.
 STAT_EXPONENT_BASE = 1.1
 
+# Damage types
 PHYSICAL = 'physical'
 SPECIAL = 'special'
+
+# Effect keys
+BASE_DAMAGE_BONUS = 'base_damage_bonus'
+ATTACK_MULTIPLIER = 'attack_multiplier'
+DEFENSE_MULTIPLIER = 'defense_multiplier'
+FLAT_DAMAGE_BONUS = 'flat_damage_bonus'
+FLAT_DEFENSE_BONUS = 'flat_defense_bonus'
+ATTACK_DAMAGE_MULTIPLIER = 'attack_damage_multiplier'
+DEFENDING_DAMAGE_MULTIPLIER = 'defending_damage_multiplier'
+
+# Aggregation methods
+ADD = 'add'
+MULT = 'mult'
 
 
 class Actor():
   def __init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
-               speed):
+               speed, auras=None):
     self.name = name
 
     self.max_hp = max_hp
@@ -26,6 +41,11 @@ class Actor():
     self.sp_attack = sp_attack
     self.sp_defense = sp_defense
     self.speed = speed
+
+    if auras is None:
+      self.auras = []
+    else:
+      self.auras = auras
 
   def take_damage(self, damage):
     self.hp -= damage
@@ -63,20 +83,26 @@ class Actor():
 
   def get_damage(self, target, damage_type):
     base_damage = self.get_base_damage(damage_type)
-    damage_mult = self.get_damage_multiplier(damage_type)
+    base_damage += self.get_base_damage_bonus(damage_type)
+    attack_mult = self.get_attack_multiplier(damage_type)
     def_mult = target.get_defense_multiplier(damage_type)
     damage_bonus = self.get_damage_bonus(damage_type)
     def_bonus = target.get_def_bonus(damage_type)
+    atk_damage_mult = self.get_attack_damage_multiplier(damage_type)
+    def_damage_mult = target.get_defending_damage_multiplier(damage_type)
 
     raw_phys_damage = (
-        base_damage * damage_mult * def_mult + damage_bonus - def_bonus)
+        base_damage * attack_mult * def_mult + damage_bonus - def_bonus)
 
-    return max(0, raw_phys_damage)
+    return max(0, raw_phys_damage) * atk_damage_mult * def_damage_mult
 
   def get_base_damage(self, damage_type):
     raise NotImplementedError
 
-  def get_damage_multiplier(self, damage_type):
+  def get_base_damage_bonus(self, damage_type):
+    return self.get_aura_effect((damage_type, BASE_DAMAGE_BONUS), ADD)
+
+  def get_attack_multiplier(self, damage_type):
     """Placeholder to be replaced when stat system is removed."""
     if damage_type == PHYSICAL:
       relevant_stat = self.attack
@@ -85,7 +111,9 @@ class Actor():
     else:
       raise ValueError('Invalid damage type %s' % damage_type)
 
-    return STAT_EXPONENT_BASE ** relevant_stat
+    aura_effect = self.get_aura_effect((damage_type, ATTACK_MULTIPLIER), MULT)
+
+    return aura_effect * STAT_EXPONENT_BASE ** relevant_stat
 
   def get_defense_multiplier(self, damage_type):
     """Placeholder to be replaced when stat system is removed."""
@@ -96,22 +124,56 @@ class Actor():
     else:
       raise ValueError('Invalid damage type %s' % damage_type)
 
-    return STAT_EXPONENT_BASE ** -relevant_stat
+    aura_effect = self.get_aura_effect((damage_type, DEFENSE_MULTIPLIER), MULT)
+
+    return aura_effect * STAT_EXPONENT_BASE ** -relevant_stat
 
   def get_damage_bonus(self, damage_type):
-    return 0
+    return self.get_aura_effect((damage_type, FLAT_DAMAGE_BONUS), ADD)
 
   def get_def_bonus(self, damage_type):
-    return 0
+    return self.get_aura_effect((damage_type, FLAT_DEFENSE_BONUS), ADD)
+
+  def get_attack_damage_multiplier(self, damage_type):
+    return self.get_aura_effect((damage_type, ATTACK_DAMAGE_MULTIPLIER), MULT)
+
+  def get_defending_damage_multiplier(self, damage_type):
+    return self.get_aura_effect((damage_type, DEFENDING_DAMAGE_MULTIPLIER), MULT)
 
   def take_turn(self, battle):
     raise NotImplementedError
+
+  def decrement_auras(self):
+    auras = []
+    for aura in self.auras:
+      aura.duration -= 1
+      if aura.duration > 0:
+        auras.append(aura)
+      else:
+        print('%s wore off' % aura.name)
+    self.auras = auras
+
+  def get_aura_effect(self, key, aggregation_method):
+    if aggregation_method == ADD:
+      effect = 0
+    elif aggregation_method == MULT:
+      effect = 1
+    else:
+      raise ValueError('Invalid aggregation method %s' % aggregation_method)
+    for aura in self.auras:
+      if aura.effects_dict[key] is not None:
+        if aggregation_method == ADD:
+          effect += aura.effects_dict[key]
+        elif aggregation_method == MULT:
+          effect *= aura.effects_dict[key]
+    return effect
 
 
 class Enemy(Actor):
   def take_turn(self, battle):
     target = random.choice(battle.players)
     self.attack_target(target)
+    self.decrement_auras()
 
   def react(self, interactor):
     print("%s didn't like that" % self.name)
@@ -193,6 +255,7 @@ class Player(Actor):
         elif action == 'look':
           battle.explain()
 
+    self.decrement_auras()
 
   def get_base_damage(self, damage_type):
     if self.equipped is None:
@@ -207,6 +270,15 @@ class Player(Actor):
   def interact(self, target):
     target.react(self)
 
+
+class Aura():
+  def __init__(self, name, effects_dict, duration=1):
+    self.name = name
+    self.effects_dict = collections.defaultdict(lambda: None, effects_dict)
+    self.duration = duration
+
+  def __repr__(self):
+    return '%s (%d)' % (self.name, self.duration)
 
 class Item():
   def get_valid_targets(self, user, battle):
@@ -228,7 +300,22 @@ class Potion(Item):
     return 'Potion'
 
 
-class Weapon():
+class BerserkerPotion(Potion):
+  def use(self, user, target):
+    berserker_aura = Aura(
+    'Berserk',
+    {
+        (PHYSICAL, ATTACK_DAMAGE_MULTIPLIER): 1.25,
+        (PHYSICAL, DEFENDING_DAMAGE_MULTIPLIER): 1.25,
+        (SPECIAL, DEFENDING_DAMAGE_MULTIPLIER): 1.25,
+    }, duration=3)
+    user.auras.append(berserker_aura)
+    user.inventory.remove(self)
+
+  def __repr__(self):
+    return 'Berserker Potion'
+
+class Weapon(Item):
   def __init__(self, name):
     self.name = name
 
@@ -355,7 +442,7 @@ def main():
       sp_attack=10,
       sp_defense=10,
       speed=10,
-      inventory=[Potion(), sword, magic_wand])
+      inventory=[BerserkerPotion(), Potion(), sword, magic_wand])
 
   lil_bugs = [LilBug(i) for i in range(4)]
   lil_bugs[0].speed = 11
