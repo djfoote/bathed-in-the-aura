@@ -453,17 +453,9 @@ class Battle():
     while self.initiative_order:
       print('========================================')
       current_actor = self.initiative_order.pop(0)
+      print("%s's turn" % current_actor)
       current_actor.take_turn(self)
       self.remove_dead_actors()
-
-  def run_turn(self):
-    print('========================================')
-    
-    current_actor = self.initiative_order[self.current_actor_index]
-    current_actor.take_turn(self)
-
-    self.current_actor_index = (
-        (self.current_actor_index + 1) % len(self.initiative_order))
 
   def start(self):
     while self.players and self.enemies:
@@ -472,10 +464,6 @@ class Battle():
       print('All players dead. You lose.')
     elif not self.enemies:
       print('All enemies dead. You win.')
-
-
-def get_equipped_string(equipped):
-  return equipped.name if equipped is not None else 'unarmed'
 
 
 def choose_option(options):
