@@ -189,6 +189,68 @@ class Enemy(Actor):
     }[damage_type]
 
 
+class PapaRoach(Enemy):
+  def __init__(self):
+    Enemy.__init__(
+        self,
+        name='Papa Roach',
+        max_hp=20,
+        attack=3,
+        defense=5,
+        sp_attack=1,
+        sp_defense=1,
+        speed=5)
+
+  def take_turn(self, battle):
+    available_actions = ['spawn', 'attack']
+    if self.hp >= 2:
+      action = random.choice(available_actions)
+    else:
+      action = 'attack'
+    if action == 'attack':
+      target = random.choice(battle.players)
+      self.attack_target(target)
+    elif action == 'spawn':
+      lilbug = LilBug('pete')
+      print('%s spawned %s' % (self.name, lilbug))
+      battle.spawn_enemy(lilbug)
+      self.hp //= 2
+    self.decrement_auras()
+
+  def get_base_damage(self, damage_type):
+    return {
+        PHYSICAL: 1,
+        SPECIAL: 0,
+    }[damage_type]
+
+
+class LilBug(Enemy):
+  def __init__(self, identifier):
+      Enemy.__init__(
+          self,
+          name='lil bug %s' % identifier,
+          max_hp=5,
+          attack=1,
+          defense=3,
+          sp_attack=1,
+          sp_defense=1,
+          speed=8)
+
+  def get_base_damage(self, damage_type):
+    return {
+        PHYSICAL: 1,
+        SPECIAL: 0,
+    }[damage_type]
+
+  def is_interactable(self):
+    return True
+
+  def react(self, interactor):
+    print("%s bit %s's finger. %s took 1 damage." %
+          (self.name, interactor.name, interactor.name))
+    interactor.take_damage(1)
+
+
 class Player(Actor):
   def __init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
                speed, inventory, equipped=None):
@@ -287,6 +349,77 @@ class Item():
     user.inventory.remove(self)
 
 
+class Potion(Item):
+  def get_valid_targets(self, user, battle):
+    return battle.players
+
+  def use(self, user, target):
+    target.heal(5)
+    user.inventory.remove(self)
+
+  def __repr__(self):
+    return 'Potion'
+
+
+class BerserkerPotion(Potion):
+  def use(self, user, target):
+    berserker_aura = Aura(
+    'Berserk',
+    {
+        (PHYSICAL, ATTACK_DAMAGE_MULTIPLIER): 1.25,
+        (PHYSICAL, DEFENDING_DAMAGE_MULTIPLIER): 1.25,
+        (SPECIAL, DEFENDING_DAMAGE_MULTIPLIER): 1.25,
+    }, duration=3)
+    user.auras.append(berserker_aura)
+    user.inventory.remove(self)
+
+  def __repr__(self):
+    return 'Berserker Potion'
+
+class Weapon(Item):
+  def __init__(self, name):
+    self.name = name
+
+  def get_damage(self, damage_type):
+    raise NotImplementedError
+
+  def get_valid_targets(self, user, battle):
+    return [user]
+
+  def use(self, user, target):
+    print('%s equipped %s' % (user.name, self.name))
+    user.equipped = self
+
+  def __repr__(self):
+    return self.name
+
+
+class Sword(Weapon):
+  """A basic deterministic physical weapon."""
+  def __init__(self, name, base_power):
+    Weapon.__init__(self, name)
+    self.base_power = base_power
+
+  def get_damage(self, damage_type):
+    return {
+        PHYSICAL: self.base_power,
+        SPECIAL: 0,
+    }[damage_type]
+
+
+class MagicWand(Weapon):
+  """A basic deterministic special weapon."""
+  def __init__(self, name, base_power):
+    Weapon.__init__(self, name)
+    self.base_power = base_power
+
+  def get_damage(self, damage_type):
+    return {
+        PHYSICAL: 0,
+        SPECIAL: self.base_power,
+    }[damage_type]
+
+
 class Battle():
   def __init__(self, players, enemies):
     self.players = players
@@ -344,3 +477,25 @@ def choose_option(options):
     except IndexError:
       print('invalid input.')
   return choice
+
+
+def main():
+  sword = Sword('Sword', 2)
+  magic_wand = MagicWand('Magic wand', 2)
+  anzacel = Player(
+      name='Anzacel',
+      max_hp=10,
+      attack=10,
+      defense=10,
+      sp_attack=10,
+      sp_defense=10,
+      speed=10,
+      inventory=[BerserkerPotion(), Potion(), sword, magic_wand])
+
+  battle = Battle([anzacel], [PapaRoach()])
+  battle.explain()
+  battle.start()
+
+
+if __name__ == '__main__':
+  main()
