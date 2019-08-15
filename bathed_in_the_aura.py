@@ -175,8 +175,11 @@ class Enemy(Actor):
     self.attack_target(target)
     self.decrement_auras()
 
+  def is_interactable(self):
+    return False
+
   def react(self, interactor):
-    print("%s didn't like that" % self.name)
+    raise NotImplementedError
 
   def get_base_damage(self, damage_type):
     """Default behavior: deal basic physical and special damage."""
@@ -239,6 +242,9 @@ class LilBug(Enemy):
         SPECIAL: 0,
     }[damage_type]
 
+  def is_interactable(self):
+    return True
+
   def react(self, interactor):
     print("%s bit %s's finger. %s took 1 damage." %
           (self.name, interactor.name, interactor.name))
@@ -253,14 +259,31 @@ class Player(Actor):
     self.inventory = inventory
     self.equipped = equipped
 
+  def get_available_actions(self, battle, action_points):
+    all_actions = [('attack', 3),
+                   ('item', 1),
+                   ('interact', 3),
+                   ('end turn', 0),
+                   ('look', 0)]
+    available_actions = []
+    for action, cost in all_actions:
+      if cost > action_points:
+        continue
+      elif action == 'item':
+        if self.inventory:
+          available_actions.append((action, cost))
+      elif action == 'interact':
+        if self.get_interaction_targets(battle):
+          available_actions.append((action, cost))
+      else:
+        available_actions.append((action, cost))
+    return available_actions
+
+
   def take_turn(self, battle):
     action_points = MAX_ACTION_POINTS
     while action_points:
-      actions = [('attack', 3),
-                 ('item', 1),
-                 ('interact', 3),
-                 ('end turn', 0),
-                 ('look', 0)]
+      actions = self.get_available_actions(battle, action_points)
       action, cost = choose_option(actions)
       if cost > action_points:
         print('You only have %d AP' % action_points)
@@ -304,6 +327,9 @@ class Player(Actor):
 
   def interact(self, target):
     target.react(self)
+
+  def get_interaction_targets(self, battle):
+    return [enemy for enemy in battle.enemies if enemy.is_interactable()]
 
 
 class Aura():
