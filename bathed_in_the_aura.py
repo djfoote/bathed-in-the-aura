@@ -399,9 +399,6 @@ class Battle():
     self.players = players
     self.enemies = enemies
 
-    self.init_initiative_order()
-    self.current_actor_index = 0
-
   def explain(self):
     player_infos = [(player.name, player.hp) for player in self.players]
     enemy_infos = [(enemy.name, enemy.hp) for enemy in self.enemies]
@@ -410,26 +407,28 @@ class Battle():
     print('enemies: ', enemy_infos)
 
   def remove_dead_actors(self):
-    self.players = []
-    self.enemies = []
-    for i, actor in enumerate(self.initiative_order):
-      if actor.alive:
-        if isinstance(actor, Player):
-          self.players.append(actor)
-        if isinstance(actor, Enemy):
-          self.enemies.append(actor)
-      # Don't skip a turn when someone dies.
-      elif i < self.current_actor_index:
-        self.current_actor_index -= 1
+    self.players = [player for player in self.players if player.alive]
+    self.enemies = [enemy for enemy in self.enemies if enemy.alive]
+    self.initiative_order = [
+        actor for actor in self.initiative_order if actor.alive
+    ]
 
-  def spawn_enemy(self, enemy):
+  def spawn_enemy(self, enemy, move_this_round=False):
     self.enemies.append(enemy)
-    self.init_initiative_order()
+    if move_this_round:
+      self.sort_initiative_order(self.initiative_order + [enemy])
 
-  def init_initiative_order(self):
-    actors = self.players + self.enemies
+  def sort_initiative_order(self, actors):
     self.initiative_order = sorted(actors,
                                    key=lambda actor: (-actor.speed, actor.name))
+
+  def run_round(self):
+    self.sort_initiative_order(self.players + self.enemies)
+    while self.initiative_order:
+      print('========================================')
+      current_actor = self.initiative_order.pop(0)
+      current_actor.take_turn(self)
+      self.remove_dead_actors()
 
   def run_turn(self):
     print('========================================')
@@ -442,11 +441,7 @@ class Battle():
 
   def start(self):
     while self.players and self.enemies:
-      self.run_turn()
-      self.remove_dead_actors()
-      # TODO: figure out logic for speed changes mid-match
-      # Need to re-init initiative order at least every time someone dies.
-      self.init_initiative_order()
+      self.run_round()
     if not self.players:
       print('All players dead. You lose.')
     elif not self.enemies:
