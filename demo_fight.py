@@ -18,7 +18,8 @@ def main():
       speed=10,
       inventory=[items.BerserkerPotion(), items.Potion(), sword, magic_wand])
 
-  battle = battle_engine.Battle([anzacel], [enemies.PapaRoach()])
+  battle = battle_engine.Battle([anzacel],
+                                [enemies.PapaRoach(), enemies.HornDog()])
   battle.explain()
   battle.start()
 

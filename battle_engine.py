@@ -67,8 +67,8 @@ class Actor():
     return self.name
 
   def attack_target(self, target):
-    phys_damage = self.get_damage(target, PHYSICAL)
-    sp_damage = self.get_damage(target, SPECIAL)
+    phys_damage = self.get_attack_damage(target, PHYSICAL)
+    sp_damage = self.get_attack_damage(target, SPECIAL)
     crit = random.random() < CRIT_PROBABILITY
     crit_multiplier = CRIT_MULTIPLIER if crit else 1
 
@@ -80,8 +80,9 @@ class Actor():
     print('%s took %d damage.' % (target.name, damage))
 
     target.take_damage(damage)
+    target.respond_to_attack(self)
 
-  def get_damage(self, target, damage_type):
+  def get_attack_damage(self, target, damage_type):
     base_damage = self.get_base_damage(damage_type)
     base_damage += self.get_base_damage_bonus(damage_type)
     attack_mult = self.get_attack_multiplier(damage_type)
@@ -91,10 +92,9 @@ class Actor():
     atk_damage_mult = self.get_attack_damage_multiplier(damage_type)
     def_damage_mult = target.get_defending_damage_multiplier(damage_type)
 
-    raw_phys_damage = (
-        base_damage * attack_mult * def_mult + damage_bonus - def_bonus)
-
-    return max(0, raw_phys_damage) * atk_damage_mult * def_damage_mult
+    return compute_damage(
+        base_damage, attack_mult, def_mult, damage_bonus, def_bonus,
+        atk_damage_mult, def_damage_mult)
 
   def get_base_damage(self, damage_type):
     raise NotImplementedError
@@ -142,6 +142,9 @@ class Actor():
 
   def take_turn(self, battle):
     raise NotImplementedError
+
+  def respond_to_attack(self, attacker):
+    pass
 
   def decrement_auras(self):
     auras = []
@@ -331,6 +334,12 @@ class Battle():
       print('All players dead. You lose.')
     elif not self.enemies:
       print('All enemies dead. You win.')
+
+
+def compute_damage(base_damage, attack_mult, def_mult, damage_bonus, def_bonus,
+                   atk_damage_mult, def_damage_mult):
+  raw_damage = base_damage * attack_mult * def_mult + damage_bonus - def_bonus
+  return max(0, raw_damage) * atk_damage_mult * def_damage_mult
 
 
 def choose_option(options):
