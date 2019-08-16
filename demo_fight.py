@@ -11,10 +11,16 @@ def main():
   anzacel = battle_engine.Player(
       name='Anzacel',
       max_hp=10,
-      attack=10,
-      defense=10,
-      sp_attack=10,
-      sp_defense=10,
+      stat_dict={
+          (battle_engine.PHYSICAL, battle_engine.POWER): 1,
+          (battle_engine.PHYSICAL, battle_engine.STRENGTH): 2,
+          (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 2,
+          (battle_engine.PHYSICAL, battle_engine.ARMOR): 0,
+          (battle_engine.SPECIAL, battle_engine.POWER): 0.5,
+          (battle_engine.SPECIAL, battle_engine.STRENGTH): 2,
+          (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
+          (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
+      },
       speed=10,
       inventory=[items.BerserkerPotion(), items.Potion(), sword, magic_wand])
 

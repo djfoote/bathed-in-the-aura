@@ -13,14 +13,16 @@ STAT_EXPONENT_BASE = 1.1
 PHYSICAL = 'physical'
 SPECIAL = 'special'
 
-# Effect keys
-BASE_DAMAGE_BONUS = 'base_damage_bonus'
-ATTACK_MULTIPLIER = 'attack_multiplier'
-DEFENSE_MULTIPLIER = 'defense_multiplier'
-FLAT_DAMAGE_BONUS = 'flat_damage_bonus'
-FLAT_DEFENSE_BONUS = 'flat_defense_bonus'
-ATTACK_DAMAGE_MULTIPLIER = 'attack_damage_multiplier'
-DEFENDING_DAMAGE_MULTIPLIER = 'defending_damage_multiplier'
+# Stats
+POWER = 'power'
+STRENGTH = 'strength'
+RESISTANCE = 'resistance'
+ARMOR = 'armor'
+
+# Non-stat damage quantities
+DAMAGE_BONUS = 'damage_bonus'
+DAMAGE_MULTIPLIER = 'damage_multiplier'
+RECEIVED_DAMAGE_MULTIPLIER = 'receieved_damage_multiplier'
 
 # Aggregation methods
 ADD = 'add'
@@ -28,18 +30,15 @@ MULT = 'mult'
 
 
 class Actor():
-  def __init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
-               speed, auras=None):
+  def __init__(self, name, max_hp, stat_dict, speed, auras=None):
     self.name = name
 
     self.max_hp = max_hp
     self.hp = max_hp
     self.alive = True
 
-    self.attack = attack
-    self.defense = defense
-    self.sp_attack = sp_attack
-    self.sp_defense = sp_defense
+    self.stats = stat_dict
+
     self.speed = speed
 
     if auras is None:
@@ -66,9 +65,9 @@ class Actor():
   def __repr__(self):
     return self.name
 
-  def attack_target(self, target):
-    phys_damage = self.get_attack_damage(target, PHYSICAL)
-    sp_damage = self.get_attack_damage(target, SPECIAL)
+  def attack_target(self, target, attack_tags):
+    phys_damage = self.get_attack_damage(target, PHYSICAL, attack_tags)
+    sp_damage = self.get_attack_damage(target, SPECIAL, attack_tags)
     crit = random.random() < CRIT_PROBABILITY
     crit_multiplier = CRIT_MULTIPLIER if crit else 1
 
@@ -82,15 +81,19 @@ class Actor():
     target.take_damage(damage)
     target.respond_to_attack(self)
 
-  def get_attack_damage(self, target, damage_type):
+  def get_attack_damage(self, target, damage_type, attack_tags=()):
     base_damage = self.get_base_damage(damage_type)
-    base_damage += self.get_base_damage_bonus(damage_type)
-    attack_mult = self.get_attack_multiplier(damage_type)
-    def_mult = target.get_defense_multiplier(damage_type)
+
+    if damage_type in attack_tags:
+      # Only add user's power if weapon deals corresponding damage type.
+      base_damage += self.get_power(damage_type)
+
+    attack_mult = self.get_strength(damage_type)
+    def_mult = target.get_resistance(damage_type)
     damage_bonus = self.get_damage_bonus(damage_type)
-    def_bonus = target.get_def_bonus(damage_type)
-    atk_damage_mult = self.get_attack_damage_multiplier(damage_type)
-    def_damage_mult = target.get_defending_damage_multiplier(damage_type)
+    def_bonus = target.get_armor(damage_type)
+    atk_damage_mult = self.get_damage_multiplier(damage_type)
+    def_damage_mult = target.get_received_damage_multiplier(damage_type)
 
     return compute_damage(
         base_damage, attack_mult, def_mult, damage_bonus, def_bonus,
@@ -99,46 +102,34 @@ class Actor():
   def get_base_damage(self, damage_type):
     raise NotImplementedError
 
-  def get_base_damage_bonus(self, damage_type):
-    return self.get_aura_effect((damage_type, BASE_DAMAGE_BONUS), ADD)
+  def get_power(self, damage_type):
+    stat = self.stats[(damage_type, POWER)]
+    aura_effect = self.get_aura_effect((damage_type, POWER), ADD)
+    return stat + aura_effect
 
-  def get_attack_multiplier(self, damage_type):
-    """Placeholder to be replaced when stat system is removed."""
-    if damage_type == PHYSICAL:
-      relevant_stat = self.attack
-    elif damage_type == SPECIAL:
-      relevant_stat = self.sp_attack
-    else:
-      raise ValueError('Invalid damage type %s' % damage_type)
+  def get_strength(self, damage_type):
+    stat = self.stats[(damage_type, STRENGTH)]
+    aura_effect = self.get_aura_effect((damage_type, STRENGTH), MULT)
+    return stat * aura_effect
 
-    aura_effect = self.get_aura_effect((damage_type, ATTACK_MULTIPLIER), MULT)
-
-    return aura_effect * STAT_EXPONENT_BASE ** relevant_stat
-
-  def get_defense_multiplier(self, damage_type):
-    """Placeholder to be replaced when stat system is removed."""
-    if damage_type == PHYSICAL:
-      relevant_stat = self.defense
-    elif damage_type == SPECIAL:
-      relevant_stat = self.sp_defense
-    else:
-      raise ValueError('Invalid damage type %s' % damage_type)
-
-    aura_effect = self.get_aura_effect((damage_type, DEFENSE_MULTIPLIER), MULT)
-
-    return aura_effect * STAT_EXPONENT_BASE ** -relevant_stat
+  def get_resistance(self, damage_type):
+    stat = self.stats[(damage_type, RESISTANCE)]
+    aura_effect = self.get_aura_effect((damage_type, RESISTANCE), MULT)
+    return stat * aura_effect
 
   def get_damage_bonus(self, damage_type):
-    return self.get_aura_effect((damage_type, FLAT_DAMAGE_BONUS), ADD)
+    return self.get_aura_effect((damage_type, DAMAGE_BONUS), ADD)
 
-  def get_def_bonus(self, damage_type):
-    return self.get_aura_effect((damage_type, FLAT_DEFENSE_BONUS), ADD)
+  def get_armor(self, damage_type):
+    stat = self.stats[(damage_type, ARMOR)]
+    aura_effect = self.get_aura_effect((damage_type, ARMOR), ADD)
+    return stat + aura_effect
 
-  def get_attack_damage_multiplier(self, damage_type):
-    return self.get_aura_effect((damage_type, ATTACK_DAMAGE_MULTIPLIER), MULT)
+  def get_damage_multiplier(self, damage_type):
+    return self.get_aura_effect((damage_type, DAMAGE_MULTIPLIER), MULT)
 
-  def get_defending_damage_multiplier(self, damage_type):
-    return self.get_aura_effect((damage_type, DEFENDING_DAMAGE_MULTIPLIER), MULT)
+  def get_received_damage_multiplier(self, damage_type):
+    return self.get_aura_effect((damage_type, RECEIVED_DAMAGE_MULTIPLIER), MULT)
 
   def take_turn(self, battle):
     raise NotImplementedError
@@ -175,7 +166,7 @@ class Actor():
 class Enemy(Actor):
   def take_turn(self, battle):
     target = random.choice(battle.players)
-    self.attack_target(target)
+    self.attack_target(target, self.get_standard_attack_tags())
     self.decrement_auras()
 
   def is_interactable(self):
@@ -191,12 +182,13 @@ class Enemy(Actor):
         SPECIAL: 1,
     }[damage_type]
 
+  def get_standard_attack_tags(self):
+    return [PHYSICAL, SPECIAL]
+
 
 class Player(Actor):
-  def __init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
-               speed, inventory, equipped=None):
-    Actor.__init__(self, name, max_hp, attack, defense, sp_attack, sp_defense,
-                   speed)
+  def __init__(self, name, max_hp, stat_dict, speed, inventory, equipped=None):
+    Actor.__init__(self, name, max_hp, stat_dict, speed)
     self.inventory = inventory
     self.equipped = equipped
 
@@ -232,7 +224,7 @@ class Player(Actor):
         action_points -= cost
         if action == 'attack':
           target = choose_option(battle.enemies)
-          self.attack_target(target)
+          self.attack_target(target, self.get_attack_tags())
         elif action == 'item':
           if self.inventory:
             item = choose_option(self.inventory)
@@ -265,6 +257,13 @@ class Player(Actor):
       }[damage_type]
     else:
       return self.equipped.get_damage(damage_type)
+
+  def get_attack_tags(self):
+    if self.equipped:
+      return self.equipped.tags
+    else:
+      # Unarmed.
+      return [PHYSICAL]
 
   def interact(self, target):
     target.react(self)
@@ -336,10 +335,10 @@ class Battle():
       print('All enemies dead. You win.')
 
 
-def compute_damage(base_damage, attack_mult, def_mult, damage_bonus, def_bonus,
-                   atk_damage_mult, def_damage_mult):
-  raw_damage = base_damage * attack_mult * def_mult + damage_bonus - def_bonus
-  return max(0, raw_damage) * atk_damage_mult * def_damage_mult
+def compute_damage(power, strength, resistance, damage_bonus, armor,
+                   damage_mult, receieved_damage_mult):
+  raw_damage = power * strength / resistance + damage_bonus - armor
+  return max(0, raw_damage) * damage_mult * receieved_damage_mult
 
 
 def choose_option(options):

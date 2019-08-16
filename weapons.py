@@ -24,6 +24,7 @@ class Sword(Weapon):
   def __init__(self, name, base_power):
     Weapon.__init__(self, name)
     self.base_power = base_power
+    self.tags = [battle_engine.PHYSICAL]
 
   def get_damage(self, damage_type):
     return {
@@ -37,6 +38,7 @@ class MagicWand(Weapon):
   def __init__(self, name, base_power):
     Weapon.__init__(self, name)
     self.base_power = base_power
+    self.tags = [battle_engine.SPECIAL]
 
   def get_damage(self, damage_type):
     return {

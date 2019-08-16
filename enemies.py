@@ -9,10 +9,16 @@ class PapaRoach(battle_engine.Enemy):
         self,
         name='Papa Roach',
         max_hp=20,
-        attack=3,
-        defense=5,
-        sp_attack=1,
-        sp_defense=1,
+        stat_dict={
+            (battle_engine.PHYSICAL, battle_engine.POWER): 0,
+            (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
+            (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1.5,
+            (battle_engine.PHYSICAL, battle_engine.ARMOR): 0,
+            (battle_engine.SPECIAL, battle_engine.POWER): 0,
+            (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
+            (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
+            (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
+        },
         speed=5)
 
   def take_turn(self, battle):
@@ -23,7 +29,7 @@ class PapaRoach(battle_engine.Enemy):
       action = 'attack'
     if action == 'attack':
       target = random.choice(battle.players)
-      self.attack_target(target)
+      self.attack_target(target, self.get_standard_attack_tags())
     elif action == 'spawn':
       lilbug = LilBug('pete')
       print('%s spawned %s' % (self.name, lilbug))
@@ -33,22 +39,31 @@ class PapaRoach(battle_engine.Enemy):
 
   def get_base_damage(self, damage_type):
     return {
-        battle_engine.PHYSICAL: 1,
+        battle_engine.PHYSICAL: 2,
         battle_engine.SPECIAL: 0,
     }[damage_type]
+
+  def get_standard_attack_tags(self):
+    return [battle_engine.PHYSICAL]
 
 
 class LilBug(battle_engine.Enemy):
   def __init__(self, identifier):
-      battle_engine.Enemy.__init__(
-          self,
-          name='lil bug %s' % identifier,
-          max_hp=5,
-          attack=1,
-          defense=3,
-          sp_attack=1,
-          sp_defense=1,
-          speed=8)
+    battle_engine.Enemy.__init__(
+        self,
+        name='lil bug %s' % identifier,
+        max_hp=5,
+        stat_dict={
+            (battle_engine.PHYSICAL, battle_engine.POWER): 0,
+            (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
+            (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1.5,
+            (battle_engine.PHYSICAL, battle_engine.ARMOR): 0,
+            (battle_engine.SPECIAL, battle_engine.POWER): 0,
+            (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
+            (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
+            (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
+        },
+        speed=8)
 
   def get_base_damage(self, damage_type):
     return {
@@ -64,6 +79,9 @@ class LilBug(battle_engine.Enemy):
           (self.name, interactor.name, interactor.name))
     interactor.take_damage(1)
 
+  def get_standard_attack_tags(self):
+    return [battle_engine.PHYSICAL]
+
 
 class HornDog(battle_engine.Enemy):
   def __init__(self):
@@ -71,29 +89,38 @@ class HornDog(battle_engine.Enemy):
         self,
         name='Horn Dog',
         max_hp=10,
-        attack=5,
-        defense=3,
-        sp_attack=1,
-        sp_defense=2,
+        stat_dict={
+            (battle_engine.PHYSICAL, battle_engine.POWER): 0,
+            (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
+            (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1,
+            (battle_engine.PHYSICAL, battle_engine.ARMOR): 0,
+            (battle_engine.SPECIAL, battle_engine.POWER): 0,
+            (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
+            (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
+            (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
+        },
         speed=11)
 
     self.thorns_damage = 1
 
   def get_base_damage(self, damage_type):
     return {
-        battle_engine.PHYSICAL: 1,
+        battle_engine.PHYSICAL: 1.5,
         battle_engine.SPECIAL: 0,
     }[damage_type]
 
+  def get_standard_attack_tags(self):
+    return [battle_engine.PHYSICAL]
+
   def respond_to_attack(self, attacker):
     thorns_damage = battle_engine.compute_damage(
-        base_damage=0,
-        attack_mult=0,
-        def_mult=0,
+        power=0,
+        strength=0,
+        resistance=1,
         damage_bonus=self.thorns_damage,
-        def_bonus=attacker.get_def_bonus(battle_engine.PHYSICAL),
-        atk_damage_mult=1,
-        def_damage_mult=attacker.get_defending_damage_multiplier(
+        armor=attacker.get_armor(battle_engine.PHYSICAL),
+        damage_mult=1,
+        receieved_damage_mult=attacker.get_received_damage_multiplier(
             battle_engine.PHYSICAL))
     print('%s dealt %d thorns damage' % (self.name, thorns_damage))
     attacker.take_damage(thorns_damage)
