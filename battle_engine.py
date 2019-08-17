@@ -28,6 +28,22 @@ RECEIVED_DAMAGE_MULTIPLIER = 'receieved_damage_multiplier'
 ADD = 'add'
 MULT = 'mult'
 
+# Actions
+ATTACK = 'attack'
+ABILITY = 'ability'
+ITEM = 'item'
+INTERACT = 'interact'
+END_TURN = 'end turn'
+LOOK = 'look'
+ALL_ACTIONS = [ATTACK, ABILITY, ITEM, INTERACT, END_TURN, LOOK]
+ACTION_COST = {
+  ATTACK: 3,
+  ITEM: 1,
+  INTERACT: 3,
+  END_TURN: 0,
+  LOOK: 0,
+}
+
 
 class Actor():
   def __init__(self, name, max_hp, stat_dict, speed, auras=None):
@@ -187,66 +203,85 @@ class Enemy(Actor):
 
 
 class Player(Actor):
-  def __init__(self, name, max_hp, stat_dict, speed, inventory, equipped=None):
+  def __init__(self, name, max_hp, stat_dict, speed, inventory, abilities=None,
+               equipped=None):
     Actor.__init__(self, name, max_hp, stat_dict, speed)
     self.inventory = inventory
+
+    if abilities is None:
+      self.abilities = []
+    else:
+      self.abilities = abilities
+    
     self.equipped = equipped
 
   def get_available_actions(self, battle, action_points):
-    all_actions = [('attack', 3),
-                   ('item', 1),
-                   ('interact', 3),
-                   ('end turn', 0),
-                   ('look', 0)]
     available_actions = []
-    for action, cost in all_actions:
-      if cost > action_points:
+    for action in ALL_ACTIONS:
+      if action in ACTION_COST and ACTION_COST[action] > action_points:
         continue
-      elif action == 'item':
+      elif action == ABILITY:
+        if self.get_available_abilities(action_points):
+          available_actions.append(action)
+      elif action == ITEM:
         if self.inventory:
-          available_actions.append((action, cost))
-      elif action == 'interact':
+          available_actions.append(action)
+      elif action == INTERACT:
         if self.get_interaction_targets(battle):
-          available_actions.append((action, cost))
+          available_actions.append(action)
       else:
-        available_actions.append((action, cost))
+        available_actions.append(action)
     return available_actions
 
+  def get_available_abilities(self, action_points):
+    return [ability for ability in self.abilities
+            if ability.ap_cost <= action_points]
 
   def take_turn(self, battle):
     action_points = MAX_ACTION_POINTS
-    while action_points:
+    while action_points > 0:
       actions = self.get_available_actions(battle, action_points)
-      action, cost = choose_option(actions)
-      if cost > action_points:
-        print('You only have %d AP' % action_points)
-      else:
-        action_points -= cost
-        if action == 'attack':
-          target = choose_option(battle.enemies)
-          self.attack_target(target, self.get_attack_tags())
-        elif action == 'item':
-          if self.inventory:
-            item = choose_option(self.inventory)
-            valid_targets = item.get_valid_targets(self, battle)
-            if valid_targets:
-              target = choose_option(valid_targets)
-              item.use(self, target)
-            else:
-              print('No valid targets')
-              action_points += cost
-          else:
-            print('No items')
-            action_points += cost
-        elif action == 'interact':
-          target = choose_option(battle.enemies)
-          self.interact(target)
-        elif action == 'end turn':
-          action_points = 0
-        elif action == 'look':
-          battle.explain()
+      action = choose_option(actions)
+
+      cost = self.take_action(action, battle, action_points)
+      action_points -= cost
 
     self.decrement_auras()
+
+  def take_action(self, action, battle, action_points):
+    """Take action and return cost."""
+    if action == ATTACK:
+      target = choose_option(battle.enemies)
+      self.attack_target(target, self.get_attack_tags())
+      return ACTION_COST[action]
+    elif action == ABILITY:
+      abilities = self.get_available_abilities(action_points)
+      ability = choose_option(abilities)
+      ability.use(self, battle)
+      return ability.ap_cost
+    elif action == ITEM:
+      if self.inventory:
+        item = choose_option(self.inventory)
+        valid_targets = item.get_valid_targets(self, battle)
+        if valid_targets:
+          target = choose_option(valid_targets)
+          item.use(self, target)
+          return ACTION_COST[action]
+        else:
+          print('No valid targets')
+          return 0
+      else:
+        print('No items')
+        return 0
+    elif action == INTERACT:
+      target = choose_option(self.get_interaction_targets(battle))
+      self.interact(target)
+      return ACTION_COST[action]
+    elif action == END_TURN:
+      return MAX_ACTION_POINTS
+    elif action == LOOK:
+      battle.explain()
+      return 0
 
   def get_base_damage(self, damage_type):
     if self.equipped is None:
@@ -280,6 +315,19 @@ class Aura():
 
   def __repr__(self):
     return '%s (%d)' % (self.name, self.duration)
+
+
+class Ability():
+  def __init__(self, name, ap_cost):
+    self.name = name
+    self.ap_cost = ap_cost
+
+  def use(self, user, battle):
+    raise NotImplementedError
+
+  def __repr__(self):
+    return '%s (%s)' % (self.name, self.ap_cost)
+
 
 class Item():
   def get_valid_targets(self, user, battle):

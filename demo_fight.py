@@ -1,5 +1,6 @@
 import battle_engine
 
+import abilities
 import enemies
 import items
 import weapons
@@ -22,7 +23,8 @@ def main():
           (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
       },
       speed=10,
-      inventory=[items.BerserkerPotion(), items.Potion(), sword, magic_wand])
+      inventory=[items.BerserkerPotion(), items.Potion(), sword, magic_wand],
+      abilities=[abilities.Heal(1)])
 
   battle = battle_engine.Battle([anzacel],
                                 [enemies.PapaRoach(), enemies.HornDog()])
