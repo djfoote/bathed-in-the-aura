@@ -24,7 +24,7 @@ def main():
       },
       speed=10,
       inventory=[items.BerserkerPotion(), items.Potion(), sword, magic_wand],
-      abilities=[abilities.Heal(1)])
+      abilities=[abilities.Pray(0.5, 1.25, 0.5, 0.75, 3)])
 
   battle = battle_engine.Battle([anzacel],
                                 [enemies.PapaRoach(), enemies.HornDog()])

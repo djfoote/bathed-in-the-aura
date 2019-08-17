@@ -12,12 +12,14 @@ STAT_EXPONENT_BASE = 1.1
 # Damage types
 PHYSICAL = 'physical'
 SPECIAL = 'special'
+DAMAGE_TYPES = [PHYSICAL, SPECIAL]
 
 # Stats
 POWER = 'power'
 STRENGTH = 'strength'
 RESISTANCE = 'resistance'
 ARMOR = 'armor'
+STATS = [POWER, STRENGTH, RESISTANCE, ARMOR]
 
 # Non-stat damage quantities
 DAMAGE_BONUS = 'damage_bonus'
@@ -33,9 +35,9 @@ ATTACK = 'attack'
 ABILITY = 'ability'
 ITEM = 'item'
 INTERACT = 'interact'
-END_TURN = 'end turn'
 LOOK = 'look'
-ALL_ACTIONS = [ATTACK, ABILITY, ITEM, INTERACT, END_TURN, LOOK]
+END_TURN = 'end turn'
+ALL_ACTIONS = [ATTACK, ABILITY, ITEM, INTERACT, LOOK, END_TURN]
 ACTION_COST = {
   ATTACK: 3,
   ITEM: 1,
@@ -384,13 +386,15 @@ class Battle():
 
 
 def compute_damage(power, strength, resistance, damage_bonus, armor,
-                   damage_mult, receieved_damage_mult):
+                   damage_mult, received_damage_mult):
   raw_damage = power * strength / resistance + damage_bonus - armor
-  return max(0, raw_damage) * damage_mult * receieved_damage_mult
+  return max(0, raw_damage) * damage_mult * received_damage_mult
 
 
 def choose_option(options):
-  print('choices: ', list(enumerate(options)))
+  print('choices: ')
+  for num_and_option in enumerate(options):
+    print('  %d: %s' % num_and_option)
   choice = None
   while choice is None:
     try:

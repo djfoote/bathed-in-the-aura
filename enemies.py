@@ -120,7 +120,7 @@ class HornDog(battle_engine.Enemy):
         damage_bonus=self.thorns_damage,
         armor=attacker.get_armor(battle_engine.PHYSICAL),
         damage_mult=1,
-        receieved_damage_mult=attacker.get_received_damage_multiplier(
+        received_damage_mult=attacker.get_received_damage_multiplier(
             battle_engine.PHYSICAL))
     print('%s dealt %d thorns damage' % (self.name, thorns_damage))
     attacker.take_damage(thorns_damage)

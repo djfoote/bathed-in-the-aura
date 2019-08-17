@@ -18,7 +18,7 @@ class BerserkerPotion(Potion):
     berserker_aura = battle_engine.Aura(
     'Berserk',
     {
-        (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1.25,
+        (battle_engine.PHYSICAL, battle_engine.STRENGTH): 2,
         (battle_engine.PHYSICAL, battle_engine.RECEIVED_DAMAGE_MULTIPLIER): 1.25,
         (battle_engine.SPECIAL, battle_engine.RECEIVED_DAMAGE_MULTIPLIER): 1.25,
     }, duration=3)
