@@ -377,12 +377,15 @@ class Battle():
       self.remove_dead_actors()
 
   def start(self):
+    self.explain()
     while self.players and self.enemies:
       self.run_round()
     if not self.players:
       print('All players dead. You lose.')
+      return False
     elif not self.enemies:
       print('All enemies dead. You win.')
+      return True
 
 
 def compute_damage(power, strength, resistance, damage_bonus, armor,

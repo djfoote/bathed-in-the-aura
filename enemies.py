@@ -31,7 +31,7 @@ class PapaRoach(battle_engine.Enemy):
       target = random.choice(battle.players)
       self.attack_target(target, self.get_standard_attack_tags())
     elif action == 'spawn':
-      lilbug = LilBug('pete')
+      lilbug = LilBug()
       print('%s spawned %s' % (self.name, lilbug))
       battle.spawn_enemy(lilbug)
       self.hp //= 2
@@ -48,10 +48,10 @@ class PapaRoach(battle_engine.Enemy):
 
 
 class LilBug(battle_engine.Enemy):
-  def __init__(self, identifier):
+  def __init__(self):
     battle_engine.Enemy.__init__(
         self,
-        name='lil bug %s' % identifier,
+        name='lil bug',
         max_hp=5,
         stat_dict={
             (battle_engine.PHYSICAL, battle_engine.POWER): 0,
@@ -113,7 +113,7 @@ class HornDog(battle_engine.Enemy):
     return [battle_engine.PHYSICAL]
 
   def respond_to_attack(self, attacker):
-    thorns_damage = battle_engine.compute_damage(
+    thorns_damage = round(battle_engine.compute_damage(
         power=0,
         strength=0,
         resistance=1,
@@ -121,6 +121,6 @@ class HornDog(battle_engine.Enemy):
         armor=attacker.get_armor(battle_engine.PHYSICAL),
         damage_mult=1,
         received_damage_mult=attacker.get_received_damage_multiplier(
-            battle_engine.PHYSICAL))
+            battle_engine.PHYSICAL)))
     print('%s dealt %d thorns damage' % (self.name, thorns_damage))
     attacker.take_damage(thorns_damage)

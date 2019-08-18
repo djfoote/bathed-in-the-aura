@@ -28,7 +28,6 @@ def main():
 
   battle = battle_engine.Battle([anzacel],
                                 [enemies.PapaRoach(), enemies.HornDog()])
-  battle.explain()
   battle.start()
 
 
