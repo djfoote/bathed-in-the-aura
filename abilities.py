@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import itertools
 
 import numpy as np
@@ -50,7 +46,7 @@ class ApplyAura(battle_engine.Ability):
 
 class AffectStat(ApplyAura):
   def __init__(self, name, target_stat, amount, duration, ap_cost=1):
-    name = '%s %s %s' % (name, target_stat[0], target_stat[1])
+    name = '%s %s %s' % (name, *target_stat)
     aura_constructor = lambda: battle_engine.Aura(name,
                                                   {target_stat: amount},
                                                   duration)
