@@ -45,6 +45,7 @@ ACTION_COST = {
   END_TURN: 0,
   LOOK: 0,
 }
+BACK = 'back'
 
 
 class Actor():
@@ -75,10 +76,6 @@ class Actor():
     self.hp += amount
     self.hp = min(self.hp, self.max_hp)
     print('%s has %d hp remaining.' % (self.name, self.hp))
-
-  def die(self):
-    self.alive = False
-    print('%s died' % self.name)
 
   def __repr__(self):
     return self.name
@@ -162,7 +159,7 @@ class Actor():
       if aura.duration > 0:
         auras.append(aura)
       else:
-        print('%s wore off' % aura.name)
+        print('%s wore off of %s' % (aura.name, self.name))
     self.auras = auras
 
   def get_aura_effect(self, key, aggregation_method):
@@ -202,6 +199,10 @@ class Enemy(Actor):
 
   def get_standard_attack_tags(self):
     return [PHYSICAL, SPECIAL]
+
+  def die(self):
+    self.alive = False
+    print('%s was destroyed' % self.name)
 
 
 class Player(Actor):
@@ -261,21 +262,29 @@ class Player(Actor):
   def take_action(self, action, battle, action_points):
     """Take action and return cost."""
     if action == ATTACK:
-      target = choose_option(battle.enemies)
+      target = choose_option(battle.enemies, back=True)
+      if target == BACK:
+        return 0
       self.attack_target(target, self.get_attack_tags())
       return ACTION_COST[action]
     elif action == ABILITY:
       abilities = self.get_available_abilities(action_points, self.mana)
-      ability = choose_option(abilities)
+      ability = choose_option(abilities, back=True)
+      if ability == BACK:
+        return 0
       ability.use(self, battle)
       self.spend_mana(ability.mana_cost)
       return ability.ap_cost
     elif action == ITEM:
       if self.inventory:
-        item = choose_option(self.inventory)
+        item = choose_option(self.inventory, back=True)
+        if item == BACK:
+          return 0
         valid_targets = item.get_valid_targets(self, battle)
         if valid_targets:
-          target = choose_option(valid_targets)
+          target = choose_option(valid_targets, back=True)
+          if target == BACK:
+            return 0
           item.use(self, target)
           return ACTION_COST[action]
         else:
@@ -285,7 +294,9 @@ class Player(Actor):
         print('No items')
         return 0
     elif action == INTERACT:
-      target = choose_option(self.get_interaction_targets(battle))
+      target = choose_option(self.get_interaction_targets(battle), back=True)
+      if target == BACK:
+        return 0
       self.interact(target)
       return ACTION_COST[action]
     elif action == END_TURN:
@@ -320,6 +331,10 @@ class Player(Actor):
 
   def get_interaction_targets(self, battle):
     return [enemy for enemy in battle.enemies if enemy.is_interactable()]
+
+  def die(self):
+    self.alive = False
+    print('%s was defeated' % self.name)
 
 
 class Aura():
@@ -359,9 +374,10 @@ class Battle():
     self.enemies = enemies
 
   def explain(self):
-    player_infos = [(player.name, player.hp, player.mana)
+    player_infos = [(player.name, player.hp, player.mana, player.equipped,
+                     player.auras)
                     for player in self.players]
-    enemy_infos = [(enemy.name, enemy.hp) for enemy in self.enemies]
+    enemy_infos = [(enemy.name, enemy.hp, enemy.auras) for enemy in self.enemies]
 
     print('players: ', player_infos)
     print('enemies: ', enemy_infos)
@@ -408,8 +424,10 @@ def compute_damage(power, strength, resistance, damage_bonus, armor,
   return max(0, raw_damage) * damage_mult * received_damage_mult
 
 
-def choose_option(options):
+def choose_option(options, back=False):
   print('choices: ')
+  if back:
+    options = options + [BACK]
   for num_and_option in enumerate(options):
     print('  %d: %s' % num_and_option)
   choice = None
