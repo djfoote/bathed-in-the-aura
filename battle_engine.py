@@ -205,9 +205,12 @@ class Enemy(Actor):
 
 
 class Player(Actor):
-  def __init__(self, name, max_hp, stat_dict, speed, inventory, abilities=None,
-               equipped=None):
+  def __init__(self, name, max_hp, max_mana, stat_dict, speed, inventory,
+               abilities=None, equipped=None):
     Actor.__init__(self, name, max_hp, stat_dict, speed)
+    self.max_mana = max_mana
+    self.mana = max_mana
+
     self.inventory = inventory
 
     if abilities is None:
@@ -217,13 +220,13 @@ class Player(Actor):
     
     self.equipped = equipped
 
-  def get_available_actions(self, battle, action_points):
+  def get_available_actions(self, battle, action_points, mana):
     available_actions = []
     for action in ALL_ACTIONS:
       if action in ACTION_COST and ACTION_COST[action] > action_points:
         continue
       elif action == ABILITY:
-        if self.get_available_abilities(action_points):
+        if self.get_available_abilities(action_points, mana):
           available_actions.append(action)
       elif action == ITEM:
         if self.inventory:
@@ -235,9 +238,9 @@ class Player(Actor):
         available_actions.append(action)
     return available_actions
 
-  def get_available_abilities(self, action_points):
+  def get_available_abilities(self, action_points, mana):
     return [ability for ability in self.abilities
-            if ability.ap_cost <= action_points]
+            if ability.ap_cost <= action_points and ability.mana_cost <= mana]
 
   def take_turn(self, battle):
     action_points = MAX_ACTION_POINTS
@@ -245,7 +248,7 @@ class Player(Actor):
       if not battle.enemies:
         break
 
-      actions = self.get_available_actions(battle, action_points)
+      actions = self.get_available_actions(battle, action_points, self.mana)
       action = choose_option(actions)
 
       cost = self.take_action(action, battle, action_points)
@@ -262,9 +265,10 @@ class Player(Actor):
       self.attack_target(target, self.get_attack_tags())
       return ACTION_COST[action]
     elif action == ABILITY:
-      abilities = self.get_available_abilities(action_points)
+      abilities = self.get_available_abilities(action_points, self.mana)
       ability = choose_option(abilities)
       ability.use(self, battle)
+      self.spend_mana(ability.mana_cost)
       return ability.ap_cost
     elif action == ITEM:
       if self.inventory:
@@ -289,6 +293,10 @@ class Player(Actor):
     elif action == LOOK:
       battle.explain()
       return 0
+
+  def spend_mana(self, cost):
+    self.mana -= cost
+    print('%s has %d mana remaining.' % (self.name, self.mana))
 
   def get_base_damage(self, damage_type):
     if self.equipped is None:
@@ -325,15 +333,16 @@ class Aura():
 
 
 class Ability():
-  def __init__(self, name, ap_cost):
+  def __init__(self, name, ap_cost, mana_cost):
     self.name = name
     self.ap_cost = ap_cost
+    self.mana_cost = mana_cost
 
   def use(self, user, battle):
     raise NotImplementedError
 
   def __repr__(self):
-    return '%s (%s)' % (self.name, self.ap_cost)
+    return '%s (%s, %s)' % (self.name, self.ap_cost, self.mana_cost)
 
 
 class Item():
@@ -350,7 +359,8 @@ class Battle():
     self.enemies = enemies
 
   def explain(self):
-    player_infos = [(player.name, player.hp) for player in self.players]
+    player_infos = [(player.name, player.hp, player.mana)
+                    for player in self.players]
     enemy_infos = [(enemy.name, enemy.hp) for enemy in self.enemies]
 
     print('players: ', player_infos)

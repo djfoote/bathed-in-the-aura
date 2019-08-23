@@ -32,6 +32,7 @@ def main():
   anzacel = battle_engine.Player(
       name='Anzacel',
       max_hp=10,
+      max_mana=10,
       stat_dict={
           (battle_engine.PHYSICAL, battle_engine.POWER): 1,
           (battle_engine.PHYSICAL, battle_engine.STRENGTH): 2,
