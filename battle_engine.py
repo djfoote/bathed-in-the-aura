@@ -242,11 +242,16 @@ class Player(Actor):
   def take_turn(self, battle):
     action_points = MAX_ACTION_POINTS
     while action_points > 0:
+      if not battle.enemies:
+        break
+
       actions = self.get_available_actions(battle, action_points)
       action = choose_option(actions)
 
       cost = self.take_action(action, battle, action_points)
       action_points -= cost
+
+      battle.remove_dead_actors()
 
     self.decrement_auras()
 
@@ -374,7 +379,6 @@ class Battle():
       current_actor = self.initiative_order.pop(0)
       print("%s's turn" % current_actor)
       current_actor.take_turn(self)
-      self.remove_dead_actors()
 
   def start(self):
     self.explain()
