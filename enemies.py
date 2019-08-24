@@ -8,8 +8,9 @@ class PapaRoach(battle_engine.Enemy):
     battle_engine.Enemy.__init__(
         self,
         name='Papa Roach',
-        max_hp=20,
         stat_dict={
+            (battle_engine.MAX_HP): 20,
+            (battle_engine.SPEED): 5,
             (battle_engine.PHYSICAL, battle_engine.POWER): 0,
             (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
             (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1.5,
@@ -18,8 +19,7 @@ class PapaRoach(battle_engine.Enemy):
             (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
             (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
             (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
-        },
-        speed=5)
+        })
 
   def take_turn(self, battle):
     available_actions = ['spawn', 'attack']
@@ -52,8 +52,9 @@ class LilBug(battle_engine.Enemy):
     battle_engine.Enemy.__init__(
         self,
         name='lil bug',
-        max_hp=5,
         stat_dict={
+            (battle_engine.MAX_HP): 5,
+            (battle_engine.SPEED): 8,
             (battle_engine.PHYSICAL, battle_engine.POWER): 0,
             (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
             (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1.5,
@@ -62,8 +63,7 @@ class LilBug(battle_engine.Enemy):
             (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
             (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
             (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
-        },
-        speed=8)
+        })
 
   def get_base_damage(self, damage_type):
     return {
@@ -88,8 +88,9 @@ class HornDog(battle_engine.Enemy):
     battle_engine.Enemy.__init__(
         self,
         name='Horn Dog',
-        max_hp=10,
         stat_dict={
+            (battle_engine.MAX_HP): 10,
+            (battle_engine.SPEED): 11,
             (battle_engine.PHYSICAL, battle_engine.POWER): 0,
             (battle_engine.PHYSICAL, battle_engine.STRENGTH): 1,
             (battle_engine.PHYSICAL, battle_engine.RESISTANCE): 1,
@@ -98,8 +99,7 @@ class HornDog(battle_engine.Enemy):
             (battle_engine.SPECIAL, battle_engine.STRENGTH): 1,
             (battle_engine.SPECIAL, battle_engine.RESISTANCE): 1,
             (battle_engine.SPECIAL, battle_engine.ARMOR): 0,
-        },
-        speed=11)
+        })
 
     self.thorns_damage = 1
 

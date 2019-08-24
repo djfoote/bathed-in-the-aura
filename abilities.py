@@ -56,18 +56,16 @@ class AffectStat(ApplyAura):
 
 
 class Pray(battle_engine.Ability):
-  default_specials = [Heal(1), AreaFlames(1), Heal(2), AreaFlames(2)]
-
-  def __init__(self, buff_add_amount, buff_mult_amount, seal_add_amount,
-               seal_mult_amount, duration, specials=None, num_choices=5,
-               ap_cost=1, mana_cost=1):
+  def __init__(self, buff_add_amount=0.5, buff_mult_amount=1.25,
+               seal_add_amount=0.5, seal_mult_amount=0.75, duration=3,
+               specials=None, num_choices=5, ap_cost=1, mana_cost=1):
     battle_engine.Ability.__init__(self, 'Pray', ap_cost, mana_cost)
 
     buffs = self.get_apply_aura_abilities('Buff', buff_add_amount,
                                           buff_mult_amount, duration)
     seals = self.get_apply_aura_abilities('Seal', seal_add_amount,
                                           seal_mult_amount, duration)
-    specials = specials if specials is not None else Pray.default_specials
+    specials = specials if specials is not None else []
     self.abilities = buffs + seals + specials
     self.num_choices = num_choices
 

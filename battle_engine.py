@@ -19,7 +19,10 @@ POWER = 'power'
 STRENGTH = 'strength'
 RESISTANCE = 'resistance'
 ARMOR = 'armor'
-STATS = [POWER, STRENGTH, RESISTANCE, ARMOR]
+
+MAX_HP = 'max_hp'
+MAX_MANA = 'max_mana'
+SPEED = 'speed'
 
 # Non-stat damage quantities
 DAMAGE_BONUS = 'damage_bonus'
@@ -49,16 +52,13 @@ BACK = 'back'
 
 
 class Actor():
-  def __init__(self, name, max_hp, stat_dict, speed, auras=None):
+  def __init__(self, name, stat_dict, auras=None):
     self.name = name
 
-    self.max_hp = max_hp
-    self.hp = max_hp
+    self.hp = stat_dict[MAX_HP]
     self.alive = True
 
     self.stats = stat_dict
-
-    self.speed = speed
 
     if auras is None:
       self.auras = []
@@ -74,7 +74,7 @@ class Actor():
 
   def heal(self, amount):
     self.hp += amount
-    self.hp = min(self.hp, self.max_hp)
+    self.hp = min(self.hp, self.stats[MAX_HP])
     print('%s has %d hp remaining.' % (self.name, self.hp))
 
   def __repr__(self):
@@ -206,13 +206,15 @@ class Enemy(Actor):
 
 
 class Player(Actor):
-  def __init__(self, name, max_hp, max_mana, stat_dict, speed, inventory,
-               abilities=None, equipped=None):
-    Actor.__init__(self, name, max_hp, stat_dict, speed)
-    self.max_mana = max_mana
-    self.mana = max_mana
+  def __init__(self, name, stat_dict, inventory=None, abilities=None,
+               equipped=None):
+    Actor.__init__(self, name, stat_dict)
+    self.mana = stat_dict[MAX_MANA]
 
-    self.inventory = inventory
+    if inventory is None:
+      self.inventory = []
+    else:
+      self.inventory = inventory
 
     if abilities is None:
       self.abilities = []
@@ -396,7 +398,8 @@ class Battle():
 
   def sort_initiative_order(self, actors):
     self.initiative_order = sorted(actors,
-                                   key=lambda actor: (-actor.speed, actor.name))
+                                   key=lambda actor: (-actor.stats[SPEED],
+                                                      actor.name))
 
   def run_round(self):
     self.sort_initiative_order(self.players + self.enemies)
