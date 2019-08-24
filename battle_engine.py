@@ -248,7 +248,7 @@ class Player(Actor):
   def take_turn(self, battle):
     action_points = MAX_ACTION_POINTS
     while action_points > 0:
-      if not battle.enemies:
+      if not battle.enemies or self not in battle.players:
         break
 
       actions = self.get_available_actions(battle, action_points, self.mana)
@@ -408,6 +408,10 @@ class Battle():
       current_actor = self.initiative_order.pop(0)
       print("%s's turn" % current_actor)
       current_actor.take_turn(self)
+      self.remove_dead_actors()
+      if not self.players or not self.enemies:
+        break
+
 
   def start(self):
     self.explain()

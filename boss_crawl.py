@@ -31,7 +31,6 @@ def create_battle(anzacel, encounter):
 def main():
   cells = choose_grid.choose_grid()
   anzacel = create_character.create_character('Anzacel', cells, [])
-  print(anzacel.stats)
 
   encounter = collections.Counter()
   score = 0
